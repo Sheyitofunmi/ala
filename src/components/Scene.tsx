@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { ClothSim } from "@/lib/cloth";
 import { createFabric } from "@/lib/fabric";
-import { CLOTH_H, CLOTH_W, canopy, curtain, gathered, hung, loom } from "@/lib/looks";
+import { CLOTH_H, CLOTH_W, canopy, curtain, gathered, hung, loom, tie } from "@/lib/looks";
 import { sound } from "@/lib/sound";
 import { CHAPTERS, PIECES, stage } from "@/lib/stage";
 
@@ -14,11 +14,14 @@ function World() {
   const small = size.width < 760;
 
   const sim = useMemo(() => {
-    const s = small ? new ClothSim(54, 37, CLOTH_W, CLOTH_H) : new ClothSim(76, 51, CLOTH_W, CLOTH_H);
+    // Grid chosen once from the viewport; the governor below trims the solver
+    // budget afterwards if the device cannot keep up.
+    const s = small ? new ClothSim(50, 34, CLOTH_W, CLOTH_H) : new ClothSim(70, 47, CLOTH_W, CLOTH_H);
+    // the opening film: the length begins gathered on the rail, and falls open
     s.place((u, v, o) => {
       o[0] = (u - 0.5) * 2.02;
-      o[1] = 2.06 - v * CLOTH_H * 0.9;
-      o[2] = 0.3 + 0.03 * Math.sin(u * Math.PI * 18) + v * v * 0.95;
+      o[1] = 2.06 - v * 0.1;
+      o[2] = 0.3 + 0.03 * Math.sin(u * Math.PI * 18) + v * 0.16;
     });
     s.setPins(curtain(s), 0.01);
     return s;
@@ -50,6 +53,10 @@ function World() {
     light: 0,
     wind: new THREE.Vector3(),
     intro: 0,
+    film: 0,
+    frames: 0,
+    slow: 0,
+    quality: 2,
   });
   const ptr = useRef({ x: 0, y: 0, sx: 0, sy: 0, wantGrab: false, depth: 0, touch: false, has: false });
   const ray = useMemo(() => new THREE.Raycaster(), []);
@@ -60,16 +67,20 @@ function World() {
   useEffect(() => {
     stage.sim = sim;
     let current = -1;
+    let currentPiece = -1;
     const apply = () => {
-      const ch = stage.get().chapter;
-      if (ch === current) return;
-      current = ch;
+      const { chapter: ch, piece } = stage.get();
       const id = CHAPTERS[ch].id;
+      if (ch === current && !(id === "tuntun" && piece !== currentPiece)) return;
+      current = ch;
+      currentPiece = piece;
       const narrow = window.innerWidth / window.innerHeight < 1;
       if (id === "curtain") sim.setPins(curtain(sim), 1.7);
       else if (id === "ala") sim.setPins(canopy(sim), 1.9);
       else if (id === "adire") sim.setPins(narrow ? gathered(sim, -1.18, -0.42) : gathered(sim, -2.0, -0.52), 1.8);
-      else if (id === "alaari" || id === "sanyan" || id === "tuntun")
+      // Tuntun is the one place the length stops hanging and ties itself
+      else if (id === "tuntun") sim.setPins(tie(sim, piece), 1.5);
+      else if (id === "alaari" || id === "sanyan")
         sim.setPins(narrow ? gathered(sim, 0.42, 1.18) : gathered(sim, 0.52, 2.0), 1.8);
       else if (id === "weave") sim.setPins(loom(sim), 1.8);
       else sim.setPins(hung(sim), 1.9);
@@ -93,7 +104,10 @@ function World() {
     };
     const up = () => {
       p.wantGrab = false;
-      if (sim.grabbing) sim.release();
+      if (sim.grabbing) {
+        sound.release(sim.tension);
+        sim.release();
+      }
       stage.set({ grabbing: false });
     };
     window.addEventListener("pointermove", set, { passive: true });
@@ -117,6 +131,32 @@ function World() {
 
   useFrame((state, rawDt) => {
     const dt = Math.min(rawDt, 1 / 30);
+
+    // Quality governor. Over each 90-frame window, count the frames that missed
+    // 50fps; if most of them did, spend less on the solver and the shadow map.
+    // It only ever steps down, so it cannot oscillate.
+    {
+      const r0 = rig.current;
+      if (rawDt > 0.02) r0.slow++;
+      if (++r0.frames >= 90) {
+        if (r0.slow > 55 && r0.quality > 0) {
+          r0.quality--;
+          if (r0.quality === 1) {
+            sim.iterations = 5;
+            key.current.shadow.mapSize.setScalar(small ? 512 : 1024);
+            key.current.shadow.map?.dispose();
+            key.current.shadow.map = null;
+          } else {
+            sim.substeps = 1;
+            sim.iterations = 4;
+            gl.setPixelRatio(Math.min(1.25, window.devicePixelRatio));
+          }
+        }
+        r0.frames = 0;
+        r0.slow = 0;
+      }
+    }
+
     const t = state.clock.elapsedTime;
     const r = rig.current;
     const p = ptr.current;
@@ -168,18 +208,26 @@ function World() {
     }
     if (u.uMix.value < 1) u.uMix.value = Math.min(1, u.uMix.value + dt / (ch.id === "tuntun" ? 1.2 : 2.4));
 
-    // weather
+    // weather. The opening has its own: one gust walks through the cloth
+    // about three seconds in, and the piece is over by six.
+    r.film = Math.min(7, r.film + dt);
     c.set(...ch.wind);
+    if (st.chapter === 0 && r.film < 6) {
+      const swell = Math.exp(-Math.pow((r.film - 3.6) / 1.1, 2));
+      c.set(0.3 + swell * 2.6, swell * 0.5, -0.9 - swell * 1.4);
+    }
     r.wind.lerp(c, 1 - Math.exp(-dt * 1.2));
     sim.wind = [r.wind.x, r.wind.y, r.wind.z];
     sim.gust = ch.gust;
+    sound.setWind(Math.min(1, r.wind.length() * 0.6));
+    sound.setTuning(st.chapter);
 
     // the hand
     if (p.has) {
       ndc.set(p.x, p.y);
       ray.setFromCamera(ndc, camera);
       const o = ray.ray.origin, d = ray.ray.direction;
-      if (p.wantGrab) {
+      if (p.wantGrab && r.film > 1.6) {
         p.wantGrab = false;
         const [i, depth] = sim.pick(o.x, o.y, o.z, d.x, d.y, d.z, 0.12);
         if (i >= 0 && sim.grab(i)) {
@@ -189,9 +237,14 @@ function World() {
       }
       if (sim.grabbing) {
         sim.grabTarget = [o.x + d.x * p.depth, o.y + d.y * p.depth, o.z + d.z * p.depth];
+        const pd = prevDir.current;
+        const speed = Math.min(1, (1 - pd.dot(d)) * 260);
+        sound.setBow(sim.tension, speed);
       } else if (!p.touch) {
         const pd = prevDir.current;
         sim.brush(o.x, o.y, o.z, [pd.x, pd.y, pd.z], [d.x, d.y, d.z]);
+        // until the cloth has been held once, it leans toward whoever is there
+        if (st.held === 0 && r.film > 2) sim.reach(o.x, o.y, o.z, d.x, d.y, d.z, 0.0045 * dt * 60);
         const [i] = sim.pick(o.x, o.y, o.z, d.x, d.y, d.z, 0.08);
         stage.set({ near: i >= 0 });
       }

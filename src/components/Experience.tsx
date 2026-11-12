@@ -11,6 +11,19 @@ import { ClothDefs, FigureAdire, FigureAlaari, FigureSanyan, Piece } from "./Fig
 const Scene = dynamic(() => import("./Scene"), { ssr: false });
 
 const INDEX_NO = ["—", "00", "01", "02", "03", "04", "—", "—"];
+
+/** Chapters are a continuous field, not eight slides: colour moves with scroll. */
+const hex = (h: string): [number, number, number] => [
+  parseInt(h.slice(1, 3), 16),
+  parseInt(h.slice(3, 5), 16),
+  parseInt(h.slice(5, 7), 16),
+];
+const mix = (a: string, b: string, k: number) => {
+  const A = hex(a), B = hex(b);
+  // mixing through the square of each channel keeps the midpoint from going muddy
+  const ch = (i: number) => Math.round(Math.sqrt(A[i] * A[i] * (1 - k) + B[i] * B[i] * k));
+  return `rgb(${ch(0)} ${ch(1)} ${ch(2)})`;
+};
 const LOOK_IDS = ["ala", "alaari", "adire", "sanyan"];
 
 const useStage = () => useSyncExternalStore(stage.subscribe, stage.get, stage.get);
@@ -172,6 +185,8 @@ export default function Experience() {
   const [audio, setAudio] = useState(false);
   const [note, setNote] = useState(false);
   const [form, setForm] = useState(false);
+  const [firstMark, setFirstMark] = useState(false);
+  const marked = useRef(false);
   const ch = CHAPTERS[chapter];
   const id = ch.id;
   const t = COPY[lang];
@@ -180,12 +195,27 @@ export default function Experience() {
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const l = new Lenis({ autoRaf: true, lerp: reduce ? 1 : 0.09, smoothWheel: !reduce });
     lenis.current = l;
+    const root = document.documentElement;
     const onScroll = () => {
       const els = track.current?.children;
       if (!els) return;
       const mid = window.scrollY + window.innerHeight * 0.5;
       let c = 0;
       for (let i = 0; i < els.length; i++) if ((els[i] as HTMLElement).offsetTop <= mid) c = i;
+
+      // how far through this chapter we are, so the colour can travel with us
+      const here = els[c] as HTMLElement;
+      const frac = Math.min(1, Math.max(0, (mid - here.offsetTop) / here.offsetHeight));
+      const next = CHAPTERS[Math.min(CHAPTERS.length - 1, c + 1)];
+      const cur = CHAPTERS[c];
+      // the field only starts turning in the last third of a chapter
+      const k = Math.max(0, (frac - 0.62) / 0.38);
+      const e = k * k * (3 - 2 * k);
+      root.style.setProperty("--bg", mix(cur.bg, next.bg, e));
+      root.style.setProperty("--fg", mix(cur.fg, next.fg, e));
+      root.style.setProperty("--accent", mix(cur.accent, next.accent, e));
+      // words step aside while the field turns
+      root.style.setProperty("--edge", String(Math.min(1, e * 1.7)));
       stage.set({ chapter: c });
     };
     onScroll();
@@ -199,10 +229,6 @@ export default function Experience() {
   }, []);
 
   useEffect(() => {
-    const s = document.documentElement.style;
-    s.setProperty("--bg", ch.bg);
-    s.setProperty("--fg", ch.fg);
-    s.setProperty("--accent", ch.accent);
     document.querySelector('meta[name="theme-color"]')?.setAttribute("content", ch.bg);
   }, [ch]);
 
@@ -213,7 +239,16 @@ export default function Experience() {
   // the loom knocks once each time the cloth is re-pinned
   useEffect(() => {
     sound.pin();
-  }, [chapter]);
+  }, [chapter, piece]);
+
+  // the first time anyone leaves a mark, say so once and never again
+  useEffect(() => {
+    if (held < 1 || marked.current) return;
+    marked.current = true;
+    setFirstMark(true);
+    const t = setTimeout(() => setFirstMark(false), 5200);
+    return () => clearTimeout(t);
+  }, [held]);
 
   const go = useCallback((i: number) => {
     const el = track.current?.children[i] as HTMLElement | undefined;
@@ -383,6 +418,11 @@ export default function Experience() {
             </p>
           </article>
         )}
+
+        <p className={`mark-note ${firstMark ? "on" : ""}`} aria-live="polite">
+          <i />
+          {lang === "en" ? "The cloth kept that." : "Aṣọ náà ti pa èyí mọ́."}
+        </p>
 
         <nav className="index" aria-label={t.chapters}>
           {t.index.map((n, i) => (

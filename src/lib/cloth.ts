@@ -264,6 +264,37 @@ export class ClothSim {
     }
   }
 
+  /**
+   * Before anyone has touched it, the cloth leans toward the cursor — the way
+   * hanging fabric moves when a hand passes near it.
+   */
+  reach(ox: number, oy: number, oz: number, dx: number, dy: number, dz: number, strength: number, radius = 0.55) {
+    const pos = this.pos;
+    for (let i = 0; i < this.n; i++) {
+      if (this.pinned[i]) continue;
+      const j = i * 3;
+      const px = pos[j] - ox, py = pos[j + 1] - oy, pz = pos[j + 2] - oz;
+      const t = px * dx + py * dy + pz * dz;
+      if (t < 0.05) continue;
+      const qx = px - dx * t, qy = py - dy * t, qz = pz - dz * t;
+      const d2 = qx * qx + qy * qy + qz * qz;
+      if (d2 > radius * radius) continue;
+      const d = Math.sqrt(d2) || 1e-5;
+      const f = (1 - d / radius) * strength;
+      pos[j] -= qx / d * f;
+      pos[j + 1] -= qy / d * f;
+      pos[j + 2] -= qz / d * f;
+    }
+  }
+
+  /** How far the held point has been pulled from where the cloth wants it. */
+  get tension() {
+    if (!this.grabbing || !this.grabIdx.length) return 0;
+    const j = this.grabIdx[0] * 3;
+    const [gx, gy, gz] = this.grabTarget;
+    return Math.min(1, Math.hypot(this.pos[j] - gx, this.pos[j + 1] - gy, this.pos[j + 2] - gz) * 4);
+  }
+
   rinse() {
     this.stain.fill(0);
     this.wet.fill(0);
@@ -413,8 +444,12 @@ export class ClothSim {
     for (let i = 0; i < steps; i++) this.step(1 / 60, i / 60);
   }
 
+  /** Solver budget. Lowered on slow devices by the quality governor. */
+  substeps = 2;
+  iterations = 7;
+
   step(dt: number, time: number) {
-    const sub = 2, iters = 7;
+    const sub = this.substeps, iters = this.iterations;
     const h = dt / sub;
     for (let k = 0; k < sub; k++) {
       this.updatePins(h);
@@ -422,7 +457,7 @@ export class ClothSim {
       for (let it = 0; it < iters; it++) {
         this.solve();
         this.applyGrab();
-        if (it >= iters - 3) this.collide();
+        if (it >= iters - Math.min(3, iters)) this.collide();
       }
     }
     this.computeNormals();

@@ -50,7 +50,7 @@ export const CHAPTERS: Chapter[] = [
   { id: "alaari", bg: "#efb21e", fg: "#1c0d08", accent: "#8a1220", light: 1, cloth: 1, cam: FRONT, look: AT, key: [-2.4, 3.8, 3.6], wind: [1.05, 0, -0.5], gust: 1 },
   { id: "adire", bg: "#c6d52a", fg: "#0f1b45", accent: "#1b2f7a", light: 1, cloth: 2, cam: FRONT, look: AT, key: [2.6, 3.8, 3.4], wind: [-1.05, 0, -0.5], gust: 1 },
   { id: "sanyan", bg: "#2236b4", fg: "#f4ead4", accent: "#efb21e", light: 1, cloth: 3, cam: FRONT, look: AT, key: [-2.4, 3.8, 3.6], wind: [1.05, 0, -0.5], gust: 1 },
-  { id: "tuntun", bg: "#e7ddc8", fg: "#15110e", accent: "#8a1220", light: 1, cloth: 1, cam: FRONT, look: AT, key: [2.4, 3.8, 3.6], wind: [0.85, 0, -0.5], gust: 1 },
+  { id: "tuntun", bg: "#e7ddc8", fg: "#15110e", accent: "#8a1220", light: 1, cloth: 1, cam: [0, 1.0, 5.3], look: [0, 1.06, 0.3], key: [2.4, 3.8, 3.6], wind: [0.85, 0, -0.5], gust: 1 },
   { id: "weave", bg: "#2c070d", fg: "#f3ead6", accent: "#e0b55a", light: 1, cloth: 1, cam: [0.42, 1.33, 1.55], look: [-0.38, 1.22, 0.78], key: [3.4, 1.9, 1.5], wind: [0, 0, 0], gust: 0 },
   { id: "yours", bg: "#0e0c0b", fg: "#e9e1d0", accent: "#b3242f", light: 0, cloth: 0, cam: [0, 1.2, 5.2], look: [-0.85, 1.18, 0.5], key: [2.4, 3.8, 3.6], wind: [0.3, 0, -1.1], gust: 1 },
 ];
