@@ -2,51 +2,16 @@
 
 import dynamic from "next/dynamic";
 import Lenis from "lenis";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { CHAPTERS, PIECES, stage } from "@/lib/stage";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { COPY, type Lang } from "@/lib/copy";
+import { sound } from "@/lib/sound";
+import { CHAPTERS, stage } from "@/lib/stage";
 import { ClothDefs, FigureAdire, FigureAlaari, FigureSanyan, Piece } from "./Figures";
 
 const Scene = dynamic(() => import("./Scene"), { ssr: false });
 
-type Look = { no: string; name: string; gloss: string; prose: string; specs: [string, string][] };
-
-const LOOKS: Record<string, Look> = {
-  ala: {
-    no: "N° 00",
-    name: "Àlà",
-    gloss: "the white cloth",
-    prose:
-      "Before the garment there is the length. Two metres forty by one sixty, woven by hand, cut by no one. Everything the house makes begins as this.",
-    specs: [["Length", "2.40 m"], ["Width", "1.60 m"], ["Cuts", "0"]],
-  },
-  alaari: {
-    no: "N° 01",
-    name: "Àlàárì",
-    gloss: "the crimson",
-    prose:
-      "Strip-woven a hand wide, crimson shot with gold. Worn as ìró and bùbá under a fan-pleated gèlè, with coral at the throat and a fan in the hand.",
-    specs: [["Cloth", "Àlàárì"], ["Strips", "24"], ["Worn with", "Gèlè, coral, abẹ̀bẹ̀"]],
-  },
-  adire: {
-    no: "N° 02",
-    name: "Àdìrẹ",
-    gloss: "the indigo",
-    prose:
-      "Drawn by hand in paste, then given to the dye, so no two lengths agree. Cut wide as a boubou and left to move. Gold hoops, one long strand.",
-    specs: [["Cloth", "Àdìrẹ"], ["Dye", "Indigo, by hand"], ["Worn with", "Hoops, a small bag"]],
-  },
-  sanyan: {
-    no: "N° 03",
-    name: "Sányán",
-    gloss: "the wild silk",
-    prose:
-      "The colour wild silk comes. Cut as agbádá, one wide robe over both shoulders, the chest worked by hand. Fìlà set to one side. A staff, because he can.",
-    specs: [["Cloth", "Sányán"], ["Cut", "Agbádá"], ["Worn with", "Fìlà, coral, ọ̀pá"]],
-  },
-};
-
-const INDEX = ["Curtain", "Àlà", "Àlàárì", "Àdìrẹ", "Sányán", "Tuntun", "Weave", "Yours"];
 const INDEX_NO = ["—", "00", "01", "02", "03", "04", "—", "—"];
+const LOOK_IDS = ["ala", "alaari", "adire", "sanyan"];
 
 const useStage = () => useSyncExternalStore(stage.subscribe, stage.get, stage.get);
 
@@ -70,13 +35,146 @@ function Cursor() {
   );
 }
 
+/** The loom is warped before anything is woven: a count, then the cloth drops in. */
+function Loader({ lang, ready }: { lang: Lang; ready: boolean }) {
+  const [pct, setPct] = useState(0);
+  const [gone, setGone] = useState(false);
+  useEffect(() => {
+    // Time-based, so a slow first frame never leaves anyone staring at a number.
+    const start = performance.now();
+    const FULL = new URLSearchParams(location.search).has("nointro") ? 1 : 1500;
+    let raf = 0;
+    const tick = (now: number) => {
+      const k = Math.min(1, (now - start) / FULL);
+      const eased = 1 - Math.pow(1 - k, 2.2);
+      const v = Math.min(ready ? 100 : 92, eased * 100);
+      setPct(Math.round(v));
+      if (v >= 99.5) {
+        setTimeout(() => setGone(true), 650);
+        return;
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [ready]);
+
+  return (
+    <div className="loader" data-gone={gone ? "1" : "0"} aria-hidden={gone}>
+      <div className="loader-warp" />
+      <p className="loader-mark">ÀLÀ</p>
+      <p className="loader-pct">
+        <b>{String(pct).padStart(3, "0")}</b>
+        <span>{COPY[lang].loading}</span>
+      </p>
+      <div className="loader-rule">
+        <i style={{ transform: `scaleX(${pct / 100})` }} />
+      </div>
+    </div>
+  );
+}
+
+type FormState = "idle" | "sending" | "sent" | "failed";
+
+function Fitting({ lang, onClose }: { lang: Lang; onClose: () => void }) {
+  const t = COPY[lang].form;
+  const [state, setState] = useState<FormState>("idle");
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const first = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    first.current?.focus();
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", esc);
+    return () => window.removeEventListener("keydown", esc);
+  }, [onClose]);
+
+  const submit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const data = new FormData(e.currentTarget);
+    const body = {
+      name: String(data.get("name") ?? ""),
+      email: String(data.get("email") ?? ""),
+      message: String(data.get("message") ?? ""),
+      company: String(data.get("company") ?? ""),
+    };
+    const next: Record<string, string> = {};
+    if (!body.name.trim()) next.name = t.required;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(body.email)) next.email = body.email ? t.badEmail : t.required;
+    if (!body.message.trim()) next.message = t.required;
+    setErrors(next);
+    if (Object.keys(next).length) return;
+
+    setState("sending");
+    try {
+      const res = await fetch("/api/fitting", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      setState(res.ok ? "sent" : "failed");
+    } catch {
+      setState("failed");
+    }
+  };
+
+  return (
+    <div className="sheet" role="dialog" aria-modal="true" aria-label={COPY[lang].yours.fitting}>
+      <button className="sheet-veil" onClick={onClose} aria-label={t.close} />
+      <form className="sheet-body" onSubmit={submit} noValidate>
+        <p className="no">
+          {COPY[lang].yours.fitting} <i /> <span>{COPY[lang].yours.gloss}</span>
+        </p>
+        {state === "sent" ? (
+          <p className="prose big sheet-done">{t.sent}</p>
+        ) : (
+          <>
+            <label>
+              <span>{t.name}</span>
+              <input ref={first} name="name" autoComplete="name" aria-invalid={!!errors.name} />
+              {errors.name && <em>{errors.name}</em>}
+            </label>
+            <label>
+              <span>{t.email}</span>
+              <input name="email" type="email" inputMode="email" autoComplete="email" aria-invalid={!!errors.email} />
+              {errors.email && <em>{errors.email}</em>}
+            </label>
+            <label>
+              <span>{t.message}</span>
+              <textarea name="message" rows={3} placeholder={t.placeholder} aria-invalid={!!errors.message} />
+              {errors.message && <em>{errors.message}</em>}
+            </label>
+            <label className="trap" aria-hidden>
+              Company
+              <input name="company" tabIndex={-1} autoComplete="off" />
+            </label>
+            <div className="acts">
+              <button type="submit" disabled={state === "sending"}>
+                {state === "sending" ? t.sending : t.send}
+              </button>
+              <button type="button" className="quiet" onClick={onClose}>
+                {t.close}
+              </button>
+            </div>
+            {state === "failed" && <p className="sheet-err">{t.failed}</p>}
+          </>
+        )}
+      </form>
+    </div>
+  );
+}
+
 export default function Experience() {
   const { chapter, held, ready, grabbing, piece } = useStage();
   const track = useRef<HTMLDivElement>(null);
   const lenis = useRef<Lenis | null>(null);
+  const [lang, setLang] = useState<Lang>("en");
+  const [audio, setAudio] = useState(false);
   const [note, setNote] = useState(false);
+  const [form, setForm] = useState(false);
   const ch = CHAPTERS[chapter];
   const id = ch.id;
+  const t = COPY[lang];
 
   useEffect(() => {
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -108,15 +206,24 @@ export default function Experience() {
     document.querySelector('meta[name="theme-color"]')?.setAttribute("content", ch.bg);
   }, [ch]);
 
-  const go = (i: number) => {
+  useEffect(() => {
+    document.documentElement.lang = lang;
+  }, [lang]);
+
+  // the loom knocks once each time the cloth is re-pinned
+  useEffect(() => {
+    sound.pin();
+  }, [chapter]);
+
+  const go = useCallback((i: number) => {
     const el = track.current?.children[i] as HTMLElement | undefined;
     if (!el) return;
     const y = el.offsetTop + (i === 0 ? 0 : el.offsetHeight * 0.3);
     if (lenis.current) lenis.current.scrollTo(y, { duration: 1.6 });
     else window.scrollTo({ top: y });
-  };
+  }, []);
 
-  const look = LOOKS[id];
+  const look = LOOK_IDS.includes(id) ? t.looks[id] : undefined;
 
   return (
     <main className="stage" data-chapter={id} data-ready={ready ? "1" : "0"} data-holding={grabbing ? "1" : "0"}>
@@ -129,9 +236,9 @@ export default function Experience() {
           <span>L</span>
           <span>À</span>
         </div>
-        {Object.entries(LOOKS).map(([k, l]) => (
+        {LOOK_IDS.map((k) => (
           <div key={k} className={`title title-${k} ${id === k ? "on" : ""}`} aria-hidden>
-            <span>{l.name}</span>
+            <span>{t.looks[k].name}</span>
           </div>
         ))}
         <div className={`title title-tuntun ${id === "tuntun" ? "on" : ""}`} aria-hidden>
@@ -152,28 +259,46 @@ export default function Experience() {
 
       <div className="front">
         <header className="bar">
-          <button className="mark" onClick={() => go(0)} aria-label="ÀLÀ, back to the beginning">
+          <button className="mark" onClick={() => go(0)} aria-label="ÀLÀ">
             ÀLÀ
           </button>
-          <p className="bar-mid">Collection 01 <i>·</i> Three Cloths</p>
-          <p className="held" aria-live="polite">
-            Held <b>{String(held).padStart(2, "0")}</b>×
-          </p>
+          <p className="bar-mid">{t.collection}</p>
+          <div className="bar-end">
+            <button
+              className="switch"
+              onClick={() => setAudio(sound.toggle())}
+              aria-pressed={audio}
+              title={t.sound[audio ? 1 : 0]}
+            >
+              <span className="sr">{t.sound[audio ? 1 : 0]}</span>
+              <i className="bars" data-on={audio ? "1" : "0"} aria-hidden>
+                <b /><b /><b /><b />
+              </i>
+            </button>
+            <button className="switch lang" onClick={() => setLang(lang === "en" ? "yo" : "en")}>
+              {t.langLabel}
+            </button>
+            <p className="held" aria-live="polite">
+              {t.held} <b>{String(held).padStart(2, "0")}</b>×
+            </p>
+          </div>
         </header>
 
         <section className={`hero ${id === "curtain" ? "on" : ""}`} aria-hidden={id !== "curtain"}>
           <h1>
-            <span className="sr">ÀLÀ. </span>Cloth <em>remembers.</em>
+            <span className="sr">ÀLÀ. </span>
+            {t.tagline[0]}
+            <em>{t.tagline[1]}</em>
           </h1>
-          <p className="hero-sub">A house of handwoven cloth. Lagos.</p>
+          <p className="hero-sub">{t.sub}</p>
           <p className="hint">
-            <span>Hold the cloth. Drag it. Let go.</span>
-            <span>Scroll to unpin it</span>
+            <span>{t.hintHold}</span>
+            <span>{t.hintScroll}</span>
           </p>
         </section>
 
         {look && (
-          <article key={id} className={`card card-${id}`}>
+          <article key={id + lang} className={`card card-${id}`}>
             <p className="no">
               {look.no} <i /> <span>{look.gloss}</span>
             </p>
@@ -193,14 +318,12 @@ export default function Experience() {
         {id === "tuntun" && (
           <article className="card card-tuntun">
             <p className="no">
-              N° 04 <i /> <span>new, in Yorùbá</span>
+              {t.tuntun.no} <i /> <span>{t.tuntun.gloss}</span>
             </p>
             <h2 className="sr">Tuntun</h2>
-            <p className="prose">
-              The same three cloths, cut for now. Choose a piece and the length beside it takes its colour.
-            </p>
+            <p className="prose">{t.tuntun.prose}</p>
             <ul className="pieces">
-              {PIECES.map((p, i) => (
+              {t.tuntun.pieces.map((p, i) => (
                 <li key={p.name}>
                   <button className={i === piece ? "on" : ""} onClick={() => stage.set({ piece: i })} aria-pressed={i === piece}>
                     <Piece i={i} />
@@ -216,16 +339,17 @@ export default function Experience() {
         {id === "weave" && (
           <article className="card card-weave">
             <p className="no">
-              The weave <i /> <span>strip by strip</span>
+              {t.weave.title} <i /> <span>{t.weave.gloss}</span>
             </p>
-            <p className="prose big">
-              Woven a hand wide on a narrow loom, then sewn edge to edge. Twenty-four strips make one length.
-            </p>
-            <p className="prose">Where you held it, it has kept you.</p>
+            <p className="prose big">{t.weave.big}</p>
+            <p className="prose">{t.weave.small}</p>
             <dl>
-              <div><dt>Strip</dt><dd>10 cm</dd></div>
-              <div><dt>Fibre</dt><dd>Cotton, hand-spun</dd></div>
-              <div><dt>Gold</dt><dd>Supplementary weft</dd></div>
+              {t.weave.specs.map(([a, b]) => (
+                <div key={a}>
+                  <dt>{a}</dt>
+                  <dd>{b}</dd>
+                </div>
+              ))}
             </dl>
           </article>
         )}
@@ -233,17 +357,11 @@ export default function Experience() {
         {id === "yours" && (
           <article className="card card-yours">
             <p className="no">
-              Yours <i /> <span>the record</span>
+              {t.yours.title} <i /> <span>{t.yours.gloss}</span>
             </p>
-            <p className="prose big">
-              {held === 0
-                ? "Under every colour, the white cloth. This one has not been held yet. Go back and hold it."
-                : `Under every colour, the white cloth keeps count. You held it ${held} ${held === 1 ? "time" : "times"}. It will not be washed.`}
-            </p>
+            <p className="prose big">{held === 0 ? t.yours.empty : t.yours.counted(held)}</p>
             <div className="acts">
-              <button onClick={() => setNote((n) => !n)} aria-expanded={note}>
-                Request a fitting
-              </button>
+              <button onClick={() => setForm(true)}>{t.yours.fitting}</button>
               <button
                 className="quiet"
                 onClick={() => {
@@ -251,22 +369,23 @@ export default function Experience() {
                   stage.set({ held: 0 });
                 }}
               >
-                Wash it anyway
+                {t.yours.wash}
               </button>
             </div>
+            <button className="note-toggle" onClick={() => setNote((n) => !n)} aria-expanded={note}>
+              {note ? "—" : "+"} <span>{t.yours.gloss}</span>
+            </button>
             <p className={`note ${note ? "on" : ""}`}>
-              <span>
-                Fittings are by introduction only, in Lagos. ÀLÀ is a concept house: nothing here is for sale, and the figures are drawn, not photographed.
-              </span>
+              <span>{t.yours.note}</span>
             </p>
             <p className="credit">
-              Concept, illustration and build <a href="https://seyidev.com" target="_blank" rel="noreferrer">seyidev.com</a>
+              {t.yours.credit} <a href="https://seyidev.com" target="_blank" rel="noreferrer">seyidev.com</a>
             </p>
           </article>
         )}
 
-        <nav className="index" aria-label="Chapters">
-          {INDEX.map((n, i) => (
+        <nav className="index" aria-label={t.chapters}>
+          {t.index.map((n, i) => (
             <button key={n} className={i === chapter ? "on" : ""} onClick={() => go(i)} aria-current={i === chapter}>
               <span className="l">{n}</span>
               <span className="n">{INDEX_NO[i]}</span>
@@ -276,8 +395,10 @@ export default function Experience() {
         </nav>
       </div>
 
+      {form && <Fitting lang={lang} onClose={() => setForm(false)} />}
+
       <div className="grain" aria-hidden />
-      <div className="intro" aria-hidden />
+      <Loader lang={lang} ready={ready} />
       <Cursor />
 
       <div className="track" ref={track}>

@@ -26,12 +26,24 @@ export function canopy(sim: ClothSim): PinSpec[] {
   return out;
 }
 
-/** Drawn to one side like a curtain, so the wearer can be seen. */
+/**
+ * Drawn to one side like a curtain, so the wearer and the words each keep
+ * their own third of the screen. A wide span of pins keeps the hem from
+ * fanning back across the text.
+ */
 export function gathered(sim: ClothSim, x0: number, x1: number): PinSpec[] {
   const out: PinSpec[] = [];
+  const mid = (x0 + x1) / 2;
   for (let c = 0; c < sim.cols; c++) {
     const u = c / (sim.cols - 1);
-    out.push({ i: sim.idx(c, 0), to: [x0 + (x1 - x0) * u, 2.06, 0.34 + 0.095 * Math.sin(u * Math.PI * 2 * 10.5)] });
+    // pleats crowd toward the outer edge, so the inner edge hangs almost straight
+    const e = u * u * (3 - 2 * u);
+    out.push({
+      i: sim.idx(c, 0),
+      to: [x0 + (x1 - x0) * e, 2.06, 0.34 + 0.075 * Math.sin(u * Math.PI * 2 * 9)],
+    });
+    // a second row of pins just under the first stops it swinging inward
+    if (c % 4 === 0) out.push({ i: sim.idx(c, 1), to: [x0 + (x1 - x0) * e + (mid > 0 ? 0.02 : -0.02), 1.98, 0.36] });
   }
   return out;
 }

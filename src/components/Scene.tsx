@@ -6,6 +6,7 @@ import * as THREE from "three";
 import { ClothSim } from "@/lib/cloth";
 import { createFabric } from "@/lib/fabric";
 import { CLOTH_H, CLOTH_W, canopy, curtain, gathered, hung, loom } from "@/lib/looks";
+import { sound } from "@/lib/sound";
 import { CHAPTERS, PIECES, stage } from "@/lib/stage";
 
 function World() {
@@ -67,9 +68,9 @@ function World() {
       const narrow = window.innerWidth / window.innerHeight < 1;
       if (id === "curtain") sim.setPins(curtain(sim), 1.7);
       else if (id === "ala") sim.setPins(canopy(sim), 1.9);
-      else if (id === "adire") sim.setPins(narrow ? gathered(sim, -1.02, -0.6) : gathered(sim, -1.8, -1.04), 1.8);
+      else if (id === "adire") sim.setPins(narrow ? gathered(sim, -1.18, -0.42) : gathered(sim, -2.0, -0.52), 1.8);
       else if (id === "alaari" || id === "sanyan" || id === "tuntun")
-        sim.setPins(narrow ? gathered(sim, 0.6, 1.02) : gathered(sim, 1.04, 1.8), 1.8);
+        sim.setPins(narrow ? gathered(sim, 0.42, 1.18) : gathered(sim, 0.52, 2.0), 1.8);
       else if (id === "weave") sim.setPins(loom(sim), 1.8);
       else sim.setPins(hung(sim), 1.9);
     };
@@ -198,6 +199,15 @@ function World() {
     }
 
     sim.step(dt, t);
+
+    // the rustle follows how fast the cloth is actually moving
+    let moved = 0;
+    for (let i = 0; i < sim.n; i += 17) {
+      const j = i * 3;
+      moved += Math.abs(sim.pos[j] - sim.prev[j]) + Math.abs(sim.pos[j + 1] - sim.prev[j + 1]) + Math.abs(sim.pos[j + 2] - sim.prev[j + 2]);
+    }
+    sound.setAir(Math.min(1, (moved / (sim.n / 17)) * 90));
+
     geometry.attributes.position.needsUpdate = true;
     geometry.attributes.normal.needsUpdate = true;
     geometry.attributes.aStain.needsUpdate = true;

@@ -46,8 +46,6 @@ a { color: inherit; }
   z-index: 5; pointer-events: none; opacity: 0.2; mix-blend-mode: overlay;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .5 0 0 0 0 .5 0 0 0 .9 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
-.intro { z-index: 30; background: #050404; pointer-events: none; transition: opacity 2.4s 0.2s ease; }
-.stage[data-ready="1"] .intro { opacity: 0; }
 
 .track { position: relative; z-index: -1; }
 .track > div { height: 150vh; }
@@ -87,10 +85,10 @@ a { color: inherit; }
 .title span { display: block; transform: translateY(112%); transition: transform 0.7s cubic-bezier(0.6, 0, 0.9, 0.3); }
 .title.on span { transform: none; transition: transform 1.25s 0.75s var(--ease); }
 .title-ala { left: calc(var(--pad) * 0.8); top: 9vh; }
-.title-alaari { left: 33vw; top: 7vh; font-size: min(17vw, 40vh); }
-.title-adire { left: 25vw; top: 7vh; font-size: min(18vw, 42vh); }
-.title-sanyan { left: 33vw; top: 7vh; font-size: min(16vw, 40vh); }
-.title-tuntun { left: calc(var(--pad) * 0.8); top: 8vh; font-size: min(11vw, 26vh); }
+.title-alaari { left: 30vw; top: 6vh; font-size: min(10.5vw, 24vh); }
+.title-adire { left: 33vw; top: 6vh; font-size: min(11vw, 25vh); }
+.title-sanyan { left: 30vw; top: 6vh; font-size: min(9.5vw, 22vh); }
+.title-tuntun { left: calc(var(--pad) * 0.8); top: 5vh; font-size: min(9vw, 21vh); }
 .title-yours { left: calc(var(--pad) * 0.8); top: 7vh; font-size: min(20vw, 38vh); font-variant-numeric: lining-nums; }
 
 /* ---------- chrome ---------- */
@@ -157,9 +155,9 @@ button:focus-visible, a:focus-visible { outline: 1px solid var(--accent); outlin
 .card dt { color: var(--mute); }
 
 .card-ala { left: var(--pad); bottom: calc(var(--pad) * 1.1); }
-.card-alaari, .card-sanyan { left: 42vw; bottom: calc(var(--pad) * 1.1); }
-.card-adire { left: 27vw; bottom: calc(var(--pad) * 1.1); }
-.card-tuntun { left: var(--pad); right: 35vw; bottom: calc(var(--pad) * 0.9); width: auto; }
+.card-alaari, .card-sanyan { left: 30vw; bottom: calc(var(--pad) * 1.1); width: min(30ch, 24vw); }
+.card-adire { left: 36vw; bottom: calc(var(--pad) * 1.1); width: min(30ch, 24vw); }
+.card-tuntun { left: var(--pad); right: 44vw; bottom: calc(var(--pad) * 0.9); width: auto; }
 .card-tuntun .prose { max-width: 36ch; }
 .card-weave { left: var(--pad); bottom: calc(var(--pad) * 1.1); width: min(40ch, 80vw); text-shadow: 0 1px 14px rgba(30, 4, 8, 0.6); }
 .card-yours { left: var(--pad); bottom: calc(var(--pad) * 1.1); width: min(38ch, 80vw); }
@@ -176,20 +174,88 @@ button:focus-visible, a:focus-visible { outline: 1px solid var(--accent); outlin
 .credit { margin-top: 28px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--mute); }
 .credit a { color: var(--fg); text-underline-offset: 4px; text-decoration-color: var(--accent); }
 
+/* ---------- warping the loom ---------- */
+.loader {
+  position: fixed; inset: 0; z-index: 50; background: #0b0908; color: #e9e1d0;
+  display: grid; place-items: center; transition: opacity 1s var(--ease), visibility 1s;
+}
+.loader[data-gone="1"] { opacity: 0; visibility: hidden; pointer-events: none; }
+/* warp threads, strung before the weaving starts */
+.loader-warp {
+  position: absolute; inset: 0; opacity: 0.5;
+  background: repeating-linear-gradient(90deg, rgba(233, 225, 208, 0.16) 0 1px, transparent 1px 7px);
+  mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+  animation: warp 2.2s var(--ease) infinite;
+}
+@keyframes warp { 0% { transform: scaleY(0); transform-origin: top; } 55%, 100% { transform: scaleY(1); transform-origin: top; } }
+.loader[data-gone="1"] .loader-warp { animation: none; transform: scaleY(0); transform-origin: bottom; transition: transform 0.9s var(--ease); }
+.loader-mark {
+  position: relative; font-family: var(--display); font-variation-settings: "opsz" 96;
+  font-size: min(22vw, 30vh); line-height: 1; letter-spacing: 0.08em; text-indent: 0.08em;
+}
+.loader-pct {
+  position: absolute; left: var(--pad); bottom: var(--pad); display: flex; align-items: baseline; gap: 14px;
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase;
+}
+.loader-pct b { font-size: 13px; font-variant-numeric: tabular-nums; }
+.loader-pct span { opacity: 0.55; }
+.loader-rule { position: absolute; left: var(--pad); right: var(--pad); bottom: calc(var(--pad) - 10px); height: 1px; background: rgba(233, 225, 208, 0.18); }
+.loader-rule i { display: block; height: 100%; background: #b3242f; transform-origin: left; transition: transform 0.25s linear; }
+
+/* ---------- a fitting ---------- */
+.sheet { position: fixed; inset: 0; z-index: 45; display: grid; place-items: end start; pointer-events: auto; }
+.sheet-veil { position: absolute; inset: 0; width: 100%; background: color-mix(in srgb, var(--bg) 72%, transparent); backdrop-filter: blur(3px); cursor: pointer; animation: fade 0.5s ease both; }
+@keyframes fade { from { opacity: 0; } }
+.sheet-body {
+  position: relative; margin: var(--pad); width: min(44ch, calc(100vw - var(--pad) * 2));
+  display: grid; gap: 14px; padding: clamp(20px, 2.4vw, 34px); background: var(--bg);
+  border: 1px solid var(--line); animation: card 0.7s var(--ease) both;
+}
+.sheet-body label { display: grid; gap: 6px; }
+.sheet-body label > span { font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--mute); }
+.sheet-body input, .sheet-body textarea {
+  font: inherit; font-size: 16px; color: var(--fg); background: none;
+  border: 0; border-bottom: 1px solid var(--line); padding: 7px 0; resize: none; border-radius: 0;
+}
+.sheet-body input:focus, .sheet-body textarea:focus { outline: 0; border-bottom-color: var(--accent); }
+.sheet-body [aria-invalid="true"] { border-bottom-color: var(--accent); }
+.sheet-body em { font-family: var(--mono); font-style: normal; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+.sheet-body .acts { margin-top: 6px; }
+.sheet-body button[disabled] { opacity: 0.5; cursor: default; }
+.sheet-err { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+.sheet-done { margin: 6px 0 2px; }
+.trap { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+
+/* ---------- switches ---------- */
+.bar-end { display: flex; align-items: center; gap: clamp(12px, 1.6vw, 26px); justify-self: end; }
+.switch { color: var(--mute); transition: color 0.35s; font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; }
+.switch:hover, .switch[aria-pressed="true"] { color: var(--fg); }
+.lang { border-bottom: 1px solid var(--line); padding-bottom: 2px; }
+.bars { display: flex; align-items: flex-end; gap: 2px; height: 11px; }
+.bars b { width: 2px; height: 3px; background: currentColor; transition: height 0.3s; }
+.bars[data-on="1"] b { animation: vu 1.1s ease-in-out infinite; background: var(--accent); }
+.bars[data-on="1"] b:nth-child(2) { animation-delay: 0.22s; }
+.bars[data-on="1"] b:nth-child(3) { animation-delay: 0.44s; }
+.bars[data-on="1"] b:nth-child(4) { animation-delay: 0.1s; }
+@keyframes vu { 0%, 100% { height: 3px; } 50% { height: 11px; } }
+
+.note-toggle { display: flex; gap: 10px; margin-top: 20px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--mute); }
+.note-toggle:hover { color: var(--fg); }
+
 /* ---------- the figures ---------- */
 .figure {
-  position: absolute; bottom: 0; height: 88vh; aspect-ratio: 400 / 640;
+  position: absolute; bottom: 0; height: 80vh; aspect-ratio: 400 / 640;
   opacity: 0; transform: translateY(5vh); clip-path: inset(100% 0 0 0);
   transition: opacity 0.5s var(--ease), transform 0.6s var(--ease), clip-path 0.6s var(--ease);
 }
 .figure.on { opacity: 1; transform: none; clip-path: inset(0); transition: opacity 0.6s 0.55s, transform 1.5s 0.5s var(--ease), clip-path 1.4s 0.5s var(--ease); }
 .figure svg { display: block; width: 100%; height: 100%; overflow: visible; }
-.figure-alaari, .figure-sanyan { left: 4vw; }
-.figure-adire { right: 11vw; }
+.figure-alaari, .figure-sanyan { left: 1vw; }
+.figure-adire { right: 1vw; }
 
-.pieces { list-style: none; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: clamp(8px, 1.6vw, 28px); margin-top: 3vh; align-items: end; }
+.pieces { list-style: none; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: clamp(8px, 1.2vw, 20px); margin-top: 2vh; align-items: end; }
 .pieces button { display: grid; justify-items: start; gap: 5px; width: 100%; text-align: left; padding-bottom: 12px; border-bottom: 1px solid var(--line); transition: border-color 0.4s, transform 0.6s var(--ease); }
-.pieces svg { height: 40vh; width: auto; max-width: 100%; justify-self: center; overflow: visible; transition: transform 0.7s var(--ease); transform-origin: 50% 100%; }
+.pieces svg { height: 33vh; width: auto; max-width: 100%; justify-self: center; overflow: visible; transition: transform 0.7s var(--ease); transform-origin: 50% 100%; }
 .pieces b { margin-top: 12px; font-family: var(--mono); font-weight: 500; font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; }
 .pieces small { font-family: var(--text); font-size: 14px; color: var(--mute); }
 .pieces button:hover svg, .pieces button.on svg { transform: scale(1.045); }
@@ -219,7 +285,7 @@ button:focus-visible, a:focus-visible { outline: 1px solid var(--accent); outlin
   .title-yours { font-size: 34vw; }
   .figure { height: 58vh; bottom: 25vh; }
   .figure-alaari, .figure-sanyan { left: 2vw; }
-  .figure-adire { right: 4vw; }
+  .figure-adire { right: 1vw; }
   .card, .card-alaari, .card-adire, .card-sanyan { left: var(--pad); right: auto; top: auto; bottom: calc(var(--pad) + 4px); width: min(36ch, calc(100vw - var(--pad) * 2 - 30px)); }
   .card-alaari dl, .card-adire dl, .card-sanyan dl { display: none; }
   .card-tuntun { right: var(--pad); width: auto; }

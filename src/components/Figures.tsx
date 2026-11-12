@@ -29,6 +29,7 @@ export function ClothDefs() {
   return (
     <svg width="0" height="0" style={{ position: "absolute" }} aria-hidden focusable="false">
       <defs>
+
         <pattern id="pA" width="24" height="10" patternUnits="userSpaceOnUse">{alaari}</pattern>
         <pattern id="pAd" width="24" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(38)">{alaari}</pattern>
         <pattern id="pAh" width="24" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(90)">{alaari}</pattern>
@@ -57,10 +58,37 @@ export function ClothDefs() {
           <circle cx="19.5" cy="19.5" r="2.4" fill={pale} />
           <path d="M16 3.5l7 7M23 3.5l-7 7M3 16.5l7 7M10 16.5l-7 7" stroke={pale} strokeWidth="1.4" />
         </pattern>
+        <linearGradient id="gShade" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stopColor="#000" stopOpacity=".34" />
+          <stop offset=".22" stopColor="#000" stopOpacity="0" />
+          <stop offset=".58" stopColor="#fff" stopOpacity=".16" />
+          <stop offset=".8" stopColor="#000" stopOpacity=".1" />
+          <stop offset="1" stopColor="#000" stopOpacity=".42" />
+        </linearGradient>
+        <linearGradient id="gSkin" x1="0" y1="0" x2="1" y2="0.2">
+          <stop offset="0" stopColor="#fff" stopOpacity=".18" />
+          <stop offset=".45" stopColor="#fff" stopOpacity="0" />
+          <stop offset="1" stopColor="#000" stopOpacity=".3" />
+        </linearGradient>
+        <filter id="fWeft" x="-5%" y="-5%" width="110%" height="110%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.9 0.04" numOctaves="2" seed="7" result="n" />
+          <feColorMatrix in="n" type="saturate" values="0" result="g" />
+          <feComponentTransfer in="g" result="t">
+            <feFuncA type="linear" slope=".22" intercept="0" />
+          </feComponentTransfer>
+          <feComposite in="t" in2="SourceGraphic" operator="in" />
+        </filter>
       </defs>
     </svg>
   );
 }
+
+/** The weft, raked across a garment so flat fill reads as woven cloth. */
+const Weft = ({ d }: { d: string }) => (
+  <path d={d} fill="#efe4cc" filter="url(#fWeft)" style={{ mixBlendMode: "overlay" }} opacity=".85" />
+);
+/** Light down one side of a garment, shadow down the other. */
+const Shade = ({ d, o = 1 }: { d: string; o?: number }) => <path d={d} fill="url(#gShade)" opacity={o} />;
 
 const beads = (d: string, w = 8) => <path d={d} {...LINE} stroke={CORAL} strokeWidth={w} strokeDasharray={`${w * 0.9} ${w * 0.55}`} />;
 
@@ -70,17 +98,30 @@ export function FigureAlaari() {
   return (
     <svg viewBox="0 0 400 640" role="img" aria-label="Faceless illustration of a woman in crimson strip-woven cloth with a tall head tie, coral beads and a hand fan">
       <path d="M172 282C118 290 66 326 34 452l78 22 16-60-10 226h174l-10-226 16 60 78-22C344 326 292 290 238 282c-16 22-48 22-66 0Z" fill="url(#pA)" />
-      <path d="M128 414c4-34 12-64 22-84M282 414c-4-34-12-64-22-84M70 380c10 26 26 50 44 70M330 380c-10 26-26 50-44 70" {...LINE} stroke="#3a0610" strokeWidth="3" opacity=".65" />
+      <Weft d="M172 282C118 290 66 326 34 452l78 22 16-60-10 226h174l-10-226 16 60 78-22C344 326 292 290 238 282c-16 22-48 22-66 0Z" />
+      <Shade d="M172 282C118 290 66 326 34 452l78 22 16-60-10 226h174l-10-226 16 60 78-22C344 326 292 290 238 282c-16 22-48 22-66 0Z" o={.9} />
+      <g {...LINE} stroke="#2e040c" opacity=".55">
+        <path d="M128 414c4-34 12-64 22-84M282 414c-4-34-12-64-22-84M70 380c10 26 26 50 44 70M330 380c-10 26-26 50-44 70" strokeWidth="3" />
+        <path d="M156 352c-6 90-10 190-8 286M248 352c6 90 10 190 8 286M196 338v300M214 338v300M176 348c-4 96-6 196-4 290M232 348c4 96 6 196 4 290" strokeWidth="1.6" opacity=".5" />
+        <path d="M100 462c8-24 20-48 34-66M310 462c-8-24-20-48-34-66" strokeWidth="2" opacity=".7" />
+      </g>
       <path d="M150 286l46 14-46 340H84Z" fill="url(#pG)" />
-      <path d="M150 286l46 14" {...LINE} stroke="#5a0b18" strokeWidth="3" />
+      <Weft d="M150 286l46 14-46 340H84Z" />
+      <Shade d="M150 286l46 14-46 340H84Z" o={.7} />
+      <path d="M150 286l46 14M126 306l-22 326M138 296l-14 340" {...LINE} stroke="#5a0b18" strokeWidth="2.4" opacity=".8" />
       <path d="M183 232h44l9 54c-16 18-44 18-62 0Z" fill={skin} />
       <ellipse cx="205" cy="186" rx="50" ry="60" fill={skin} />
+      <ellipse cx="205" cy="186" rx="50" ry="60" fill="url(#gSkin)" />
+      <path d="M183 232h44l9 54c-16 18-44 18-62 0Z" fill="url(#gSkin)" />
       {beads("M176 284c14 30 44 30 58 0")}
       {beads("M170 290c18 46 52 46 70 0")}
       {beads("M164 298c22 64 60 64 82 0")}
       <path d="M140 172C78 152 58 72 118 40c42-44 132-44 174 0 60 32 40 112-22 132-22-30-108-30-130 0Z" fill="url(#pAd)" />
       <path d="M205 150L118 40M205 150l-48-126M205 150V8M205 150l48-126M205 150l87-110M205 150L86 96M205 150l119-54" {...LINE} stroke="#3a0610" strokeWidth="3" opacity=".6" />
       <path d="M140 172c22-30 108-30 130 0-30-14-100-14-130 0Z" fill="#5a0b18" />
+      <path d="M140 172c22-30 108-30 130 0" {...LINE} stroke="#f0c75a" strokeWidth="2.5" opacity=".8" />
+      <Weft d="M140 172C78 152 58 72 118 40c42-44 132-44 174 0 60 32 40 112-22 132-22-30-108-30-130 0Z" />
+      <Shade d="M140 172C78 152 58 72 118 40c42-44 132-44 174 0 60 32 40 112-22 132-22-30-108-30-130 0Z" o={.8} />
       <circle cx="153" cy="216" r="8" fill={GOLD} stroke="#2b170d" strokeWidth="2.5" />
       <circle cx="257" cy="216" r="8" fill={GOLD} stroke="#2b170d" strokeWidth="2.5" />
       <rect x="323" y="540" width="15" height="74" rx="6" fill="#2b170d" />
@@ -98,13 +139,24 @@ export function FigureAdire() {
   return (
     <svg viewBox="0 0 400 640" role="img" aria-label="Faceless illustration of a woman in a wide indigo resist-dyed gown with a wrapped head tie and gold hoops">
       <path d="M150 300C90 320 40 420 20 640h360C360 420 310 320 250 300c-20 22-80 22-100 0Z" fill="url(#pD)" />
-      <path d="M96 400c-18 70-30 150-34 240M304 400c18 70 30 150 34 240M200 330v310" {...LINE} stroke="#0c1640" strokeWidth="3.4" opacity=".55" />
+      <Weft d="M150 300C90 320 40 420 20 640h360C360 420 310 320 250 300c-20 22-80 22-100 0Z" />
+      <Shade d="M150 300C90 320 40 420 20 640h360C360 420 310 320 250 300c-20 22-80 22-100 0Z" o={.95} />
+      <g {...LINE} stroke="#070e2e" opacity=".5">
+        <path d="M96 400c-18 70-30 150-34 240M304 400c18 70 30 150 34 240M200 330v310" strokeWidth="3.4" />
+        <path d="M140 352c-14 86-24 184-28 288M260 352c14 86 24 184 28 288M168 336c-8 96-14 200-14 304M232 336c8 96 14 200 14 304" strokeWidth="1.8" opacity=".6" />
+        <path d="M60 470c-10 54-16 112-18 170M340 470c10 54 16 112 18 170" strokeWidth="2.2" opacity=".5" />
+      </g>
       <path d="M138 294c30-14 94-14 124 0-28 28-96 28-124 0Z" fill={skin} />
+      <path d="M136 296c32-16 96-16 128 0" {...LINE} stroke="#e3e9f4" strokeWidth="2.6" strokeDasharray="5 5" opacity=".85" />
       <path d="M186 226h36l6 66h-48Z" fill={skin} />
       <ellipse cx="204" cy="182" rx="46" ry="58" fill={skin} />
+      <ellipse cx="204" cy="182" rx="46" ry="58" fill="url(#gSkin)" />
+      <path d="M186 226h36l6 66h-48Z" fill="url(#gSkin)" />
       {beads("M178 294c-30 120 82 120 52 0", 7)}
       <path d="M156 170C120 120 140 40 190 20c60-26 110 40 72 90 28 20 8 60-10 62-16-32-74-34-96-2Z" fill="url(#pD2)" />
-      <path d="M156 170c10-50 50-84 106-60M190 20c20 26 34 60 30 96M150 100c30-8 70-6 100 10" {...LINE} stroke="#0c1640" strokeWidth="3.4" opacity=".7" />
+      <Weft d="M156 170C120 120 140 40 190 20c60-26 110 40 72 90 28 20 8 60-10 62-16-32-74-34-96-2Z" />
+      <Shade d="M156 170C120 120 140 40 190 20c60-26 110 40 72 90 28 20 8 60-10 62-16-32-74-34-96-2Z" o={.85} />
+      <path d="M156 170c10-50 50-84 106-60M190 20c20 26 34 60 30 96M150 100c30-8 70-6 100 10M172 46c14 30 20 70 16 112" {...LINE} stroke="#070e2e" strokeWidth="3.2" opacity=".7" />
       <circle cx="262" cy="112" r="15" fill="#1c3185" stroke="#e3e9f4" strokeWidth="2.4" />
       <circle cx="156" cy="226" r="17" {...LINE} stroke="#f0c75a" strokeWidth="5.5" />
       <circle cx="252" cy="226" r="17" {...LINE} stroke="#f0c75a" strokeWidth="5.5" />
@@ -121,17 +173,32 @@ export function FigureSanyan() {
   return (
     <svg viewBox="0 0 400 640" role="img" aria-label="Faceless illustration of a man in a wide tan striped robe with a cap, long coral beads and a staff">
       <path d="M150 250C96 258 40 300 10 470L4 640h392l-6-170C360 300 304 258 250 250c-18 18-82 18-100 0Z" fill="url(#pS)" />
-      <path d="M112 300c-30 60-52 150-58 250M288 300c30 60 52 150 58 250M140 430c-8 70-10 140-8 210M260 430c8 70 10 140 8 210" {...LINE} stroke="#4a2c12" strokeWidth="3.4" opacity=".6" />
+      <Weft d="M150 250C96 258 40 300 10 470L4 640h392l-6-170C360 300 304 258 250 250c-18 18-82 18-100 0Z" />
+      <Shade d="M150 250C96 258 40 300 10 470L4 640h392l-6-170C360 300 304 258 250 250c-18 18-82 18-100 0Z" o={.9} />
+      <g {...LINE} stroke="#3a2010" opacity=".55">
+        <path d="M112 300c-30 60-52 150-58 250M288 300c30 60 52 150 58 250M140 430c-8 70-10 140-8 210M260 430c8 70 10 140 8 210" strokeWidth="3.4" />
+        <path d="M86 330c-26 62-44 146-50 230M314 330c26 62 44 146 50 230M118 440c-8 66-12 134-12 200M282 440c8 66 12 134 12 200" strokeWidth="1.8" opacity=".6" />
+        <path d="M150 262c-14 26-30 46-50 60M250 262c14 26 30 46 50 60" strokeWidth="2.4" opacity=".75" />
+      </g>
       <path d="M166 258h68l-8 196h-52Z" fill="#f3e8cb" />
+      <path d="M166 258h68l-8 196h-52Z" fill="url(#embroid)" opacity=".85" />
+      <Weft d="M166 258h68l-8 196h-52Z" />
+      <Shade d="M166 258h68l-8 196h-52Z" o={.5} />
       <g {...LINE} stroke="#8c5a22" strokeWidth="2.6">
         <path d="M200 290l26 30-26 30-26-30ZM200 304l14 16-14 16-14-16ZM200 366l20 24-20 24-20-24ZM182 258v-0M174 454h52" />
         <path d="M200 350v16M200 414v28" />
+        <path d="M178 276h44M176 288h48M180 436h40" strokeWidth="1.8" opacity=".7" />
+        <path d="M188 318l-6 4M212 318l6 4M188 382l-6 4M212 382l6 4" strokeWidth="1.6" opacity=".6" />
       </g>
       <path d="M184 200h32l6 58h-44Z" fill={skin} />
       <ellipse cx="200" cy="160" rx="44" ry="54" fill={skin} />
+      <ellipse cx="200" cy="160" rx="44" ry="54" fill="url(#gSkin)" />
+      <path d="M184 200h32l6 58h-44Z" fill="url(#gSkin)" />
       {beads("M178 258c-34 190 78 190 44 0", 8)}
       <path d="M152 134c-4-46 38-66 86-54 26 4 32 26 12 40l-4 20c-26-16-66-18-94-6Z" fill="url(#pSd)" />
-      <path d="M152 134c22-22 62-28 98-14M238 80c-2 16-8 30-18 40" {...LINE} stroke="#4a2c12" strokeWidth="3.2" opacity=".7" />
+      <Weft d="M152 134c-4-46 38-66 86-54 26 4 32 26 12 40l-4 20c-26-16-66-18-94-6Z" />
+      <Shade d="M152 134c-4-46 38-66 86-54 26 4 32 26 12 40l-4 20c-26-16-66-18-94-6Z" o={.7} />
+      <path d="M152 134c22-22 62-28 98-14M238 80c-2 16-8 30-18 40M176 86c6 18 8 36 6 52" {...LINE} stroke="#3a2010" strokeWidth="3.2" opacity=".7" />
       <rect x="325" y="300" width="10" height="340" rx="5" fill="#26140b" />
       <circle cx="330" cy="292" r="14" fill={GOLD} />
       <path d="M322 318h16M322 330h16" {...LINE} stroke={GOLD} strokeWidth="3" />
