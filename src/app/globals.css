@@ -182,33 +182,39 @@ button:focus-visible, a:focus-visible { outline: 1px solid var(--accent); outlin
 .credit { margin-top: 28px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--mute); }
 .credit a { color: var(--fg); text-underline-offset: 4px; text-decoration-color: var(--accent); }
 
-/* ---------- warping the loom ---------- */
+/* ---------- the shuttle ---------- */
 .loader {
   position: fixed; inset: 0; z-index: 50; background: #0b0908; color: #e9e1d0;
-  display: grid; place-items: center; transition: opacity 1s var(--ease), visibility 1s;
+  display: grid; place-items: center; transition: opacity 0.5s var(--ease), visibility 0.5s;
 }
 .loader[data-gone="1"] { opacity: 0; visibility: hidden; pointer-events: none; }
-/* warp threads, strung before the weaving starts */
-.loader-warp {
-  position: absolute; inset: 0; opacity: 0.5;
-  background: repeating-linear-gradient(90deg, rgba(233, 225, 208, 0.16) 0 1px, transparent 1px 7px);
-  mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
-  animation: warp 2.2s var(--ease) infinite;
-}
-@keyframes warp { 0% { transform: scaleY(0); transform-origin: top; } 55%, 100% { transform: scaleY(1); transform-origin: top; } }
-.loader[data-gone="1"] .loader-warp { animation: none; transform: scaleY(0); transform-origin: bottom; transition: transform 0.9s var(--ease); }
-.loader-mark {
-  position: relative; font-family: var(--display); font-variation-settings: "opsz" 96;
+
+.weaving {
+  position: relative;
+  font-family: var(--display); font-variation-settings: "opsz" 96; font-weight: 400;
   font-size: min(22vw, 30vh); line-height: 1; letter-spacing: 0.08em; text-indent: 0.08em;
 }
-.loader-pct {
-  position: absolute; left: var(--pad); bottom: var(--pad); display: flex; align-items: baseline; gap: 14px;
-  font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase;
+/* one copy of the name per row of weft, each revealed by its own pass */
+.weaving span {
+  display: block; white-space: nowrap;
+  animation: pass 0.34s var(--ease) both;
+  animation-delay: calc(var(--i) * 0.055s);
 }
-.loader-pct b { font-size: 13px; font-variant-numeric: tabular-nums; }
-.loader-pct span { opacity: 0.55; }
-.loader-rule { position: absolute; left: var(--pad); right: var(--pad); bottom: calc(var(--pad) - 10px); height: 1px; background: rgba(233, 225, 208, 0.18); }
-.loader-rule i { display: block; height: 100%; background: #b3242f; transform-origin: left; transition: transform 0.25s linear; }
+.weaving span:not(:first-child) { position: absolute; inset: 0; }
+.weaving span:nth-child(even) { transform-origin: right; }
+.weaving span:nth-child(odd) { transform-origin: left; }
+@keyframes pass { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+/* the shuttle itself, carrying the one red thread the house allows itself */
+.shuttle {
+  position: absolute; left: -6%; right: -6%; top: 0; height: 2px; background: #b3242f;
+  animation: throw 0.55s var(--ease) 3 alternate;
+}
+@keyframes throw {
+  from { transform: translateY(0) scaleX(0.04); transform-origin: left; }
+  to { transform: translateY(0.92em) scaleX(1); transform-origin: left; }
+}
+.loader[data-gone="1"] .shuttle { opacity: 0; }
 
 /* ---------- a fitting ---------- */
 .sheet { position: fixed; inset: 0; z-index: 45; display: grid; place-items: end start; pointer-events: auto; }

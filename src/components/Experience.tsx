@@ -48,40 +48,41 @@ function Cursor() {
   );
 }
 
-/** The loom is warped before anything is woven: a count, then the cloth drops in. */
-function Loader({ lang, ready }: { lang: Lang; ready: boolean }) {
-  const [pct, setPct] = useState(0);
+/**
+ * A weaver's shuttle crosses the warp once per row, alternating direction, and
+ * the cloth appears a row at a time. The name is woven in the same way — no
+ * counter, no progress bar, and over in about a second.
+ */
+const ROWS = 9;
+
+function Loader({ ready }: { ready: boolean }) {
   const [gone, setGone] = useState(false);
   useEffect(() => {
-    // Time-based, so a slow first frame never leaves anyone staring at a number.
-    const start = performance.now();
-    const FULL = new URLSearchParams(location.search).has("nointro") ? 1 : 1500;
-    let raf = 0;
-    const tick = (now: number) => {
-      const k = Math.min(1, (now - start) / FULL);
-      const eased = 1 - Math.pow(1 - k, 2.2);
-      const v = Math.min(ready ? 100 : 92, eased * 100);
-      setPct(Math.round(v));
-      if (v >= 99.5) {
-        setTimeout(() => setGone(true), 650);
-        return;
-      }
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [ready]);
+    const quick = new URLSearchParams(location.search).has("nointro");
+    const t = setTimeout(() => setGone(true), quick ? 10 : 1150);
+    return () => clearTimeout(t);
+  }, []);
+  // `ready` only holds the curtain if the scene is unusually slow to start
+  const hold = !gone || !ready;
 
   return (
-    <div className="loader" data-gone={gone ? "1" : "0"} aria-hidden={gone}>
-      <div className="loader-warp" />
-      <p className="loader-mark">ÀLÀ</p>
-      <p className="loader-pct">
-        <b>{String(pct).padStart(3, "0")}</b>
-        <span>{COPY[lang].loading}</span>
-      </p>
-      <div className="loader-rule">
-        <i style={{ transform: `scaleX(${pct / 100})` }} />
+    <div className="loader" data-gone={hold ? "0" : "1"} aria-hidden={!hold}>
+      <p className="sr">ÀLÀ</p>
+      <div className="weaving" aria-hidden>
+        {Array.from({ length: ROWS }, (_, i) => (
+          <span
+            key={i}
+            style={
+              {
+                "--i": i,
+                clipPath: `inset(${(i / ROWS) * 100}% 0 ${((ROWS - 1 - i) / ROWS) * 100}% 0)`,
+              } as React.CSSProperties
+            }
+          >
+            ÀLÀ
+          </span>
+        ))}
+        <i className="shuttle" />
       </div>
     </div>
   );
@@ -215,7 +216,10 @@ export default function Experience() {
       root.style.setProperty("--fg", mix(cur.fg, next.fg, e));
       root.style.setProperty("--accent", mix(cur.accent, next.accent, e));
       // words step aside while the field turns
-      root.style.setProperty("--edge", String(Math.min(1, e * 1.7)));
+      // Words dim as the field turns, but never all the way out — at full
+      // transparency there was a stretch of every chapter that looked blank.
+      const f = Math.max(0, (frac - 0.84) / 0.16);
+      root.style.setProperty("--edge", String(f * f * (3 - 2 * f) * 0.62));
       stage.set({ chapter: c });
     };
     onScroll();
@@ -438,7 +442,7 @@ export default function Experience() {
       {form && <Fitting lang={lang} onClose={() => setForm(false)} />}
 
       <div className="grain" aria-hidden />
-      <Loader lang={lang} ready={ready} />
+      <Loader ready={ready} />
       <Cursor />
 
       <div className="track" ref={track}>
