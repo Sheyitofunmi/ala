@@ -151,7 +151,17 @@ button:focus-visible, a:focus-visible { outline: 1px solid var(--accent); outlin
 .card { transform: translateY(calc(var(--edge) * -14px)); }
 
 /* ---------- chapter cards ---------- */
-.card { position: absolute; width: min(34ch, 78vw); animation: card 1.2s 1.15s var(--ease) both; will-change: opacity, transform; }
+.card { position: absolute; width: min(34ch, 78vw); animation: card 0.8s 0.45s var(--ease) both; will-change: opacity, transform; }
+/* The cloth is simulated, so it can always drift somewhere unplanned — and the
+   copy and the indigo are both dark. This is a feathered wash of the page's own
+   background behind the words: invisible against the background, and the
+   difference between legible and lost if the drape swings across it. */
+.card::before {
+  content: ""; position: absolute; inset: -3.2em -3.6em;
+  background: radial-gradient(ellipse at center, var(--bg) 0%, var(--bg) 46%, transparent 76%);
+  opacity: 0.88; z-index: -1; pointer-events: none;
+}
+.card > * { position: relative; }
 @keyframes card { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
 .card .no { display: flex; align-items: center; gap: 12px; font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; }
 .card .no i { width: 34px; height: 1px; background: var(--accent); }

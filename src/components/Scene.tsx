@@ -77,11 +77,16 @@ function World() {
       const narrow = window.innerWidth / window.innerHeight < 1;
       if (id === "curtain") sim.setPins(curtain(sim), 1.7);
       else if (id === "ala") sim.setPins(canopy(sim), 1.9);
-      else if (id === "adire") sim.setPins(narrow ? gathered(sim, -1.18, -0.42) : gathered(sim, -2.0, -0.52), 1.8);
+      // The inner edge is what the words have to live beside. Keep it well clear
+      // of the text column: at a wide aspect ratio x=-0.52 lands at 38% of the
+      // screen, which is exactly where the copy starts.
+      // Arguments run inner → outer, so the pleats crowd at the outer edge and the
+      // inner edge hangs straight. Mirrored, that means the inner x comes first.
+      else if (id === "adire") sim.setPins(narrow ? gathered(sim, -0.5, -1.22) : gathered(sim, -1.12, -2.1), 1.8);
       // Tuntun is the one place the length stops hanging and ties itself
       else if (id === "tuntun") sim.setPins(tie(sim, piece), 1.5);
       else if (id === "alaari" || id === "sanyan")
-        sim.setPins(narrow ? gathered(sim, 0.42, 1.18) : gathered(sim, 0.52, 2.0), 1.8);
+        sim.setPins(narrow ? gathered(sim, 0.5, 1.22) : gathered(sim, 1.12, 2.1), 1.8);
       else if (id === "weave") sim.setPins(loom(sim), 1.8);
       else sim.setPins(hung(sim), 1.9);
     };
