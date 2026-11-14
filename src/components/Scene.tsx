@@ -17,11 +17,36 @@ function World() {
     // Grid chosen once from the viewport; the governor below trims the solver
     // budget afterwards if the device cannot keep up.
     const s = small ? new ClothSim(50, 34, CLOTH_W, CLOTH_H) : new ClothSim(70, 47, CLOTH_W, CLOTH_H);
-    // the opening film: the length begins gathered on the rail, and falls open
+    // The opening film: the length is caught mid-release, hem still curling
+    // forward, and swings down into a hang.
+    //
+    // It is laid out by walking its own length one row at a time, turning a
+    // little further with each step. That keeps every row exactly its rest
+    // distance from the next. Bunching the rows together instead — which is
+    // what this did at first — starts every vertical spring at a tenth of its
+    // rest length; the sheet explodes outward, folds through itself, and with
+    // no self-collision to separate the layers it stays knotted for good.
+    const rows = s.rows;
+    const ys = new Float32Array(rows);
+    const zs = new Float32Array(rows);
+    {
+      const ds = CLOTH_H / (rows - 1);
+      let y = 2.06;
+      let z = 0.3;
+      for (let r = 0; r < rows; r++) {
+        ys[r] = y;
+        zs[r] = z;
+        const v = r / (rows - 1);
+        const turn = 2.0 * Math.pow(v, 1.3); // 0 = straight down, π/2 = horizontal
+        y -= Math.cos(turn) * ds;
+        z += Math.sin(turn) * ds;
+      }
+    }
     s.place((u, v, o) => {
+      const r = Math.round(v * (rows - 1));
       o[0] = (u - 0.5) * 2.02;
-      o[1] = 2.06 - v * 0.1;
-      o[2] = 0.3 + 0.03 * Math.sin(u * Math.PI * 18) + v * 0.16;
+      o[1] = ys[r] + 0.015 * Math.sin(u * Math.PI * 7);
+      o[2] = zs[r] + 0.03 * Math.sin(u * Math.PI * 18);
     });
     s.setPins(curtain(s), 0.01);
     return s;
