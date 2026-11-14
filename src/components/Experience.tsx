@@ -430,7 +430,15 @@ export default function Experience() {
 
         <nav className="index" aria-label={t.chapters}>
           {t.index.map((n, i) => (
-            <button key={n} className={i === chapter ? "on" : ""} onClick={() => go(i)} aria-current={i === chapter}>
+            // the label and number are hidden at phone size, so the name has
+            // to live on the button itself or the nav is unusable to a reader
+            <button
+              key={n}
+              className={i === chapter ? "on" : ""}
+              onClick={() => go(i)}
+              aria-current={i === chapter}
+              aria-label={n}
+            >
               <span className="l">{n}</span>
               <span className="n">{INDEX_NO[i]}</span>
               <i />
